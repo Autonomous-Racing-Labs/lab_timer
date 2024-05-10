@@ -1,65 +1,190 @@
 /*
-Pin connections
-DMD | ESP
-LAT - 22
+PINOUT:
+DMD | ESP32
+OE  - 22
 A   - 19
-B   - 23
-OE  - 16
-R   - 13
-CLK - 14
+B   - 21
+CLK - 18
+LAT - 2
+DR  - 23
 */
 
+/*
+  Quick demo of major drawing operations on a single DMD
+ */
+/*--------------------------------------------------------------------------------------
+
+ dmd_test.cpp
+   Demo and example project for the Freetronics DMD, a 512 LED matrix display
+   panel arranged in a 32 x 16 layout.
+
+This LIibrary (DMD32) and example are  fork of original DMD library  was modified to work on ESP32
+Modified by: Khudhur Alfarhan  // Qudoren@gmail.com
+1/Oct./2020
+
+ See http://www.freetronics.com/dmd for resources and a getting started guide.
+
+ Note that the DMD32 library uses the VSPI port for the fastest, low overhead writing to the
+ display. Keep an eye on conflicts if there are any other devices running from the same
+ SPI port, and that the chip select on those devices is correctly set to be inactive
+ when the DMD is being written to.
+
+ USAGE NOTES
+ -----------
+
+
+ * See the documentation on Github or attached images to find the pins that should be connected to the DMD LED display
+
+
+ This example code is in the public domain.
+ The DMD32 library is open source (GPL), for more see DMD32.cpp and DMD32.h
+
+--------------------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------------------------------
+  Includes
+--------------------------------------------------------------------------------------*/
 #include <Arduino.h>
-#include <PxMatrix.h>
+#include <DMD32.h> //
+#include "fonts/SystemFont5x7.h"
+#include "fonts/Arial_black_16.h"
 
-#define P_LAT 22
-#define P_A 19
-#define P_B 23
-#define P_OE 16
-hw_timer_t * timer = NULL;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+// Fire up the DMD library as dmd
+#define DISPLAYS_ACROSS 2
+#define DISPLAYS_DOWN 1
+DMD dmd(DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
-// Pins for LED MATRIX
+// Timer setup
+// create a hardware timer  of ESP32
+hw_timer_t *timer = NULL;
 
-PxMATRIX display(32,16,P_LAT, P_OE,P_A,P_B);
-//PxMATRIX display(64,32,P_LAT, P_OE,P_A,P_B,P_C,P_D);
-//PxMATRIX display(64,64,P_LAT, P_OE,P_A,P_B,P_C,P_D,P_E);
-
-
-void IRAM_ATTR display_updater(){
-  // Increment the counter and set the time of ISR
-  portENTER_CRITICAL_ISR(&timerMux);
-  //isplay.display(70);
-  display.displayTestPattern(70);
-  portEXIT_CRITICAL_ISR(&timerMux);
+/*--------------------------------------------------------------------------------------
+  Interrupt handler for Timer1 (TimerOne) driven DMD refresh scanning, this gets
+  called at the period set in Timer1.initialize();
+--------------------------------------------------------------------------------------*/
+void IRAM_ATTR triggerScan()
+{
+  dmd.scanDisplayBySPI();
 }
 
-
-uint16_t myCYAN = display.color565(255, 255, 255);
-void setup() {
-  // put your setup code here, to run once:
+/*--------------------------------------------------------------------------------------
+  setup
+  Called by the Arduino architecture before the main loop begins
+--------------------------------------------------------------------------------------*/
+void setup(void)
+{
   Serial.begin(9600);
-  display.begin(4);
-  // display.setScanPattern(ZAGGIZ);
-  // display.setMuxPattern(BINARY);
-  display.flushDisplay();
-  display.setTextColor(myCYAN);
-  display.setCursor(0,0);
-  display.print("Pixel");
-  Serial.println("hello");
+  // return the clock speed of the CPU
+  uint8_t cpuClock = ESP.getCpuFreqMHz();
 
-  timer = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer, &display_updater, true);
-  timerAlarmWrite(timer, 4000, true);
+  // Use 1st timer of 4
+  // devide cpu clock speed on its speed value by MHz to get 1us for each signal  of the timer
+  timer = timerBegin(0, cpuClock, true);
+  // Attach triggerScan function to our timer
+  timerAttachInterrupt(timer, &triggerScan, true);
+  // Set alarm to call triggerScan function
+  // Repeat the alarm (third parameter)
+  timerAlarmWrite(timer, 300, true);
+
+  // Start an alarm
   timerAlarmEnable(timer);
 
-
-  delay(1000);
+  // dmd.drawTestPattern(PATTERN_ALT_1);
+  // clear/init the DMD pixels held in RAM
+  dmd.clearScreen(true); // true is normal (all pixels off), false is negative (all pixels on)
 }
 
+/*--------------------------------------------------------------------------------------
+  loop
+  Arduino architecture main loop
+--------------------------------------------------------------------------------------*/
+void loop(void)
+{
+  byte b;
+  dmd.clearScreen(false);
+  delay(5000);
+  // 10 x 14 font clock, including demo of OR and NOR modes for pixels so that the flashing colon can be overlayed
+  dmd.clearScreen(true);
+  dmd.selectFont(Arial_Black_16);
+  dmd.drawChar(0, 3, '2', GRAPHICS_NORMAL);
+  dmd.drawChar(7, 3, '3', GRAPHICS_NORMAL);
+  dmd.drawChar(17, 3, '4', GRAPHICS_NORMAL);
+  dmd.drawChar(25, 3, '5', GRAPHICS_NORMAL);
+  dmd.drawChar(15, 3, ':', GRAPHICS_OR); // clock colon overlay on
+  delay(1000);
+  dmd.drawChar(15, 3, ':', GRAPHICS_NOR); // clock colon overlay off
+  delay(1000);
+  dmd.drawChar(15, 3, ':', GRAPHICS_OR); // clock colon overlay on
+  delay(1000);
+  dmd.drawChar(15, 3, ':', GRAPHICS_NOR); // clock colon overlay off
+  delay(1000);
+  dmd.drawChar(15, 3, ':', GRAPHICS_OR); // clock colon overlay on
+  delay(1000);
 
-void loop() {
+  dmd.drawMarquee("Scrolling Text", 14, (32 * DISPLAYS_ACROSS) - 1, 0);
+  long start = millis();
+  long timer = start;
+  boolean ret = false;
+  while (!ret)
+  {
+    if ((timer + 30) < millis())
+    {
+      ret = dmd.stepMarquee(-1, 0);
+      timer = millis();
+    }
+  }
+  // half the pixels on
+  dmd.drawTestPattern(PATTERN_ALT_0);
+  delay(1000);
 
- delay(100);
+  // the other half on
+  dmd.drawTestPattern(PATTERN_ALT_1);
+  delay(1000);
 
+  // display some text
+  dmd.clearScreen(true);
+  dmd.selectFont(System5x7);
+  for (byte x = 0; x < DISPLAYS_ACROSS; x++)
+  {
+    for (byte y = 0; y < DISPLAYS_DOWN; y++)
+    {
+      dmd.drawString(2 + (32 * x), 1 + (16 * y), "freet", 5, GRAPHICS_NORMAL);
+      dmd.drawString(2 + (32 * x), 9 + (16 * y), "ronic", 5, GRAPHICS_NORMAL);
+    }
+  }
+  delay(2000);
+
+  // draw a border rectangle around the outside of the display
+  dmd.clearScreen(true);
+  dmd.drawBox(0, 0, (32 * DISPLAYS_ACROSS) - 1, (16 * DISPLAYS_DOWN) - 1, GRAPHICS_NORMAL);
+  delay(1000);
+
+  for (byte y = 0; y < DISPLAYS_DOWN; y++)
+  {
+    for (byte x = 0; x < DISPLAYS_ACROSS; x++)
+    {
+      // draw an X
+      int ix = 32 * x;
+      int iy = 16 * y;
+      dmd.drawLine(0 + ix, 0 + iy, 11 + ix, 15 + iy, GRAPHICS_NORMAL);
+      dmd.drawLine(0 + ix, 15 + iy, 11 + ix, 0 + iy, GRAPHICS_NORMAL);
+      delay(1000);
+
+      // draw a circle
+      dmd.drawCircle(16 + ix, 8 + iy, 5, GRAPHICS_NORMAL);
+      delay(1000);
+
+      // draw a filled box
+      dmd.drawFilledBox(24 + ix, 3 + iy, 29 + ix, 13 + iy, GRAPHICS_NORMAL);
+      delay(1000);
+    }
+  }
+
+  // stripe chaser
+  for (b = 0; b < 20; b++)
+  {
+    dmd.drawTestPattern((b & 1) + PATTERN_STRIPE_0);
+    delay(200);
+  }
+  delay(200);
 }
