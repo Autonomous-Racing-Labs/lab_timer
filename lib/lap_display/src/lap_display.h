@@ -23,31 +23,32 @@ This module shows the lap times on the dmd. It implements the necessary function
 #define DISPLAYS_ACROSS 2
 #define DISPLAYS_DOWN 1
 
-#define SHOW_LAP_TIME_FOR_MS 3000
+#define MIN_X_START 0
+#define SEC_X_START 18
+#define MSEC_X_START 40
 
-class lap_display{
-    public:
-        lap_display();
-        void reset_timer();
-        void start_timer();
-        void lap();
-    
-    private:
-        void IRAM_ATTR triggerScan();
-        static void IRAM_ATTR triggerScanStatic();
+#define Y_OFFSET 1
 
-        void IRAM_ATTR update_time();
-        static void IRAM_ATTR update_time_static();
+#define SHOW_LAP_TIME_FOR_MS 1000
 
-        DMD * dmd = NULL;
-        // Timer setup
-        // create a hardware timer  of ESP32
-        hw_timer_t *timer = NULL;
-        hw_timer_t *scan_timer = NULL;
-        static lap_display* instance; // Static variable to hold an instance of lap_display
+void lap_display_begin();
+void lap_display_reset_timer();
+void lap_display_start_timer();
+void lap_display_lap();
 
-        unsigned long start_time_ms = 0;
-        unsigned long show_lap_time_start_ms = 0;
-};
+void IRAM_ATTR triggerScan();
+
+void IRAM_ATTR update_time();
+
+
+// Timer setup
+// create a hardware timer  of ESP32
+extern hw_timer_t *update_timer;
+extern hw_timer_t *scan_timer;
+
+
+extern unsigned long start_time_ms;
+extern unsigned long show_lap_time_start_ms;
+
 
 #endif

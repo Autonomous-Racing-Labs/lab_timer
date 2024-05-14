@@ -4,8 +4,6 @@
 #include <Arduino.h>
 #include <lap_display.h>
 
-lap_display dmd;
-
 /*--------------------------------------------------------------------------------------
   setup
   Called by the Arduino architecture before the main loop begins
@@ -13,7 +11,8 @@ lap_display dmd;
 void setup(void)
 {
   Serial.begin(9600);
-  dmd.reset_timer();
+  lap_display_begin();
+  lap_display_reset_timer();
 
 }
 
@@ -23,10 +22,10 @@ void setup(void)
 --------------------------------------------------------------------------------------*/
 void loop(void)
 {
-  dmd.start_timer();
-  delay(2000);
-  dmd.lap();
-  delay(5000);
-  dmd.reset_timer();
+  lap_display_start_timer();
+  delay(10000);
+  lap_display_lap();
+  delay(20000);
+  lap_display_reset_timer();
   delay(2000);
 }
