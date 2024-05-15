@@ -7,9 +7,15 @@
 
 #include <std_msgs/msg/int32.h>
 
-#if !defined(MICRO_ROS_TRANSPORT_ARDUINO_SERIAL)
-#error This example is only avaliable for Arduino framework with serial transport.
-#endif
+// #if !defined(MICRO_ROS_TRANSPORT_ARDUINO_SERIAL)
+// #error This example is only avaliable for Arduino framework with serial transport.
+// #endif
+
+IPAddress agent_ip(192, 168, 0, 107);
+size_t agent_port = 8888;
+
+char ssid[] = "WIFI_SSID";
+char psk[]= "WIFI_PSK";
 
 rcl_publisher_t publisher;
 std_msgs__msg__Int32 msg;
@@ -41,7 +47,7 @@ void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
 void setup() {
   // Configure serial transport
   Serial.begin(115200);
-  set_microros_serial_transports(Serial);
+  set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
   delay(2000);
 
   allocator = rcl_get_default_allocator();
