@@ -3,12 +3,13 @@
 #define STARTLIGHT_H_
 
 #include <Arduino.h>
-#include <NeoPixelBus.h>
-#include <NeoPixelAnimator.h>
+#include "Freenove_WS2812_Lib_for_ESP32.h"
+
 
 #define LED_BUILTIN 13
 #define NUM_LEDS 7
 #define DATA_PIN 13
+#define CHANNEL 0
 
 #define MODULE_COUNT 5
 #define PIXEL_PER_MODULE 7

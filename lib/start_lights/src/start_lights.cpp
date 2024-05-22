@@ -1,14 +1,20 @@
 #include "start_lights.h"
 
-NeoPixelBus<NeoGrbwFeature, NeoWs2812xMethod> strip(PIXEL_COUNT, DATA_PIN);
+Freenove_ESP32_WS2812 strip = Freenove_ESP32_WS2812(PIXEL_COUNT, DATA_PIN, CHANNEL, TYPE_GRB);
 
 unsigned long StartTime = 0;
 unsigned long RndmStartTime = 2000;
+int oldPixelsToLightUp = 0;
+
+bool is_led_on = false;
 
 void init_start_lights()
 {
-    strip.Begin();
-    strip.Show();
+    Serial.begin(9600);
+	strip.begin();
+	strip.setBrightness(255);
+    strip.show();
+    Serial.println("Start");
 }
 
 bool play_start_sequence()
@@ -19,11 +25,15 @@ bool play_start_sequence()
         int ModulesToLightUp = TimeIntoStart / NEXT_LIGHT_INTERVAL + 1;
         int PixelsToLightUp = ModulesToLightUp * PIXEL_PER_MODULE;
 
-        for (int i = 0; i < PixelsToLightUp; i++)
-        {
-            strip.SetPixelColor(i, RgbwColor(255, 0, 0, 0));
+        if(oldPixelsToLightUp != PixelsToLightUp){
+            oldPixelsToLightUp = PixelsToLightUp;
+            for (int i = 0; i < PixelsToLightUp; i++)
+            {
+                strip.set_pixel(i, 0, 255, 0);
+                is_led_on = true;
+            }
+            strip.show();
         }
-        strip.Show();
     }
     else if (TimeIntoStart < NEXT_LIGHT_INTERVAL * MODULE_COUNT + RndmStartTime)
     {
@@ -32,11 +42,12 @@ bool play_start_sequence()
     }
     else
     {
-        for (int i = 0; i < strip.PixelCount(); i++)
-        {
-            strip.SetPixelColor(i, RgbwColor(0, 0, 0, 0));
+        if(is_led_on){
+            is_led_on = false;
+            strip.setAllLedsColorData(0);
+            strip.show();
+            
         }
-        strip.Show();
         return true;
     }
     return false;
