@@ -1,46 +1,129 @@
 #include <Arduino.h>
 #include <micro_ros_platformio.h>
 
+#include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
+
 #include <rcl/rcl.h>
+#include <rcl/error_handling.h>
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
-#include <std_msgs/msg/int32.h>
+#include <example_interfaces/action/fibonacci.h>
 
-// #if !defined(MICRO_ROS_TRANSPORT_ARDUINO_SERIAL)
-// #error This example is only avaliable for Arduino framework with serial transport.
-// #endif
 
-IPAddress agent_ip(192, 168, 0, 107);
+#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
+        "Failed status on line %d: %d. Aborting.\n Fehler bei der Initialisierung: %s\n", __LINE__, (int)temp_rc), rcl_get_error_string(); delay(100); return;}}
+#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
+        "Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);}}
+
+#define MAX_FIBONACCI_ORDER 500
+bool goal_completed = false;
+int goal_order = 10;
+
+IPAddress agent_ip(10, 134, 137, 208);
 size_t agent_port = 8888;
 
-char ssid[] = "WIFI_SSID";
-char psk[]= "WIFI_PSK";
+char ssid[] = "ITSE Lab";
+char psk[]= "ITSELaboratory";
 
-rcl_publisher_t publisher;
-std_msgs__msg__Int32 msg;
 
-rclc_executor_t executor;
-rclc_support_t support;
-rcl_allocator_t allocator;
-rcl_node_t node;
-rcl_timer_t timer;
-
-#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
-#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
-
-// Error handle loop
-void error_loop() {
-  while(1) {
+void error_loop(){
+  while(1){
+    Serial.println("error");
     delay(100);
   }
 }
 
-void timer_callback(rcl_timer_t * timer, int64_t last_call_time) {
-  RCLC_UNUSED(last_call_time);
-  if (timer != NULL) {
-    RCSOFTCHECK(rcl_publish(&publisher, &msg, NULL));
-    msg.data++;
+void goal_request_callback(rclc_action_goal_handle_t * goal_handle, bool accepted, void * context)
+{
+  (void) context;
+
+  example_interfaces__action__Fibonacci_SendGoal_Request * request =
+    (example_interfaces__action__Fibonacci_SendGoal_Request *) goal_handle->ros_goal_request;
+  printf(
+    "Goal request (order: %d): %s\n",
+    request->goal.order,
+    accepted ? "Accepted" : "Rejected"
+  );
+
+  if (!accepted) {
+    goal_completed = true;
+  }
+}
+
+void feedback_callback(rclc_action_goal_handle_t * goal_handle, void * ros_feedback, void * context)
+{
+  (void) context;
+
+  example_interfaces__action__Fibonacci_SendGoal_Request * request =
+    (example_interfaces__action__Fibonacci_SendGoal_Request *) goal_handle->ros_goal_request;
+
+  printf(
+    "Goal Feedback (order: %d) [",
+    request->goal.order
+  );
+
+  example_interfaces__action__Fibonacci_FeedbackMessage * feedback =
+    (example_interfaces__action__Fibonacci_FeedbackMessage *) ros_feedback;
+
+  for (size_t i = 0; i < feedback->feedback.sequence.size; i++) {
+    printf("%d ", feedback->feedback.sequence.data[i]);
+  }
+  printf("\b]\n");
+}
+
+void result_request_callback(
+  rclc_action_goal_handle_t * goal_handle, void * ros_result_response,
+  void * context)
+{
+  (void) context;
+
+  static size_t goal_count = 1;
+
+  example_interfaces__action__Fibonacci_SendGoal_Request * request =
+    (example_interfaces__action__Fibonacci_SendGoal_Request *) goal_handle->ros_goal_request;
+
+  printf(
+    "Goal Result (order: %d) [",
+    request->goal.order
+  );
+
+  example_interfaces__action__Fibonacci_GetResult_Response * result =
+    (example_interfaces__action__Fibonacci_GetResult_Response *) ros_result_response;
+
+  if (result->status == GOAL_STATE_SUCCEEDED) {
+    for (size_t i = 0; i < result->result.sequence.size; i++) {
+      printf("%d ", result->result.sequence.data[i]);
+    }
+  } else if (result->status == GOAL_STATE_CANCELED) {
+    printf("CANCELED ");
+  } else {
+    printf("ABORTED ");
+  }
+
+  printf("\b]\n");
+
+  goal_completed = true;
+}
+
+void cancel_request_callback(
+  rclc_action_goal_handle_t * goal_handle, bool cancelled,
+  void * context)
+{
+  (void) context;
+
+  example_interfaces__action__Fibonacci_SendGoal_Request * request =
+    (example_interfaces__action__Fibonacci_SendGoal_Request *) goal_handle->ros_goal_request;
+
+  printf(
+    "Goal cancel request (order: %d): %s\n",
+    request->goal.order,
+    cancelled ? "Accepted" : "Rejected");
+
+  if (cancelled) {
+    goal_completed = true;
   }
 }
 
@@ -49,38 +132,77 @@ void setup() {
   Serial.begin(115200);
   set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
   delay(2000);
+  Serial.println("start");
 
-  allocator = rcl_get_default_allocator();
+rcl_allocator_t allocator = rcl_get_default_allocator();
+  rclc_support_t support;
 
-  //create init_options
+  // create init_options
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
 
   // create node
-  RCCHECK(rclc_node_init_default(&node, "micro_ros_platformio_node", "", &support));
+  rcl_node_t node;
+  RCCHECK(rclc_node_init_default(&node, "fibonacci_action_client_rcl", "", &support));
 
-  // create publisher
-  RCCHECK(rclc_publisher_init_default(
-    &publisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "micro_ros_platformio_node_publisher"));
+  // Create action client
+  rclc_action_client_t action_client;
+  RCCHECK(
+    rclc_action_client_init_default(
+      &action_client,
+      &node,
+      ROSIDL_GET_ACTION_TYPE_SUPPORT(example_interfaces, Fibonacci),
+      "fibonacci"
+  ));
 
-  // create timer,
-  const unsigned int timer_timeout = 1000;
-  RCCHECK(rclc_timer_init_default(
-    &timer,
-    &support,
-    RCL_MS_TO_NS(timer_timeout),
-    timer_callback));
+  // Create executor
+  rclc_executor_t executor;
+  rclc_executor_init(&executor, &support.context, 1, &allocator);
 
-  // create executor
-  RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
-  RCCHECK(rclc_executor_add_timer(&executor, &timer));
+  example_interfaces__action__Fibonacci_FeedbackMessage ros_feedback;
+  example_interfaces__action__Fibonacci_GetResult_Response ros_result_response;
+  example_interfaces__action__Fibonacci_SendGoal_Request ros_goal_request;
 
-  msg.data = 0;
+  // Allocate msg memory
+  ros_feedback.feedback.sequence.capacity = MAX_FIBONACCI_ORDER;
+  ros_feedback.feedback.sequence.size = 0;
+  ros_feedback.feedback.sequence.data = (int32_t *) malloc(
+    ros_feedback.feedback.sequence.capacity * sizeof(int32_t));
+
+  ros_result_response.result.sequence.capacity = MAX_FIBONACCI_ORDER;
+  ros_result_response.result.sequence.size = 0;
+  ros_result_response.result.sequence.data = (int32_t *) malloc(
+    ros_result_response.result.sequence.capacity * sizeof(int32_t));
+
+  RCCHECK(
+    rclc_executor_add_action_client(
+      &executor,
+      &action_client,
+      10,
+      &ros_result_response,
+      &ros_feedback,
+      goal_request_callback,
+      feedback_callback,
+      result_request_callback,
+      cancel_request_callback,
+      (void *) &action_client
+  ));
+
+  delay(2000);
+
+  // Send goal request
+  ros_goal_request.goal.order = goal_order;
+  RCCHECK(rclc_action_send_goal_request(&action_client, &ros_goal_request, NULL));
+
+  while (!goal_completed) {
+    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+    usleep(100000);
+  }
+
+  RCCHECK(rclc_action_client_fini(&action_client, &node))
+  RCCHECK(rcl_node_fini(&node))
+
 }
 
 void loop() {
   delay(100);
-  RCSOFTCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
 }
