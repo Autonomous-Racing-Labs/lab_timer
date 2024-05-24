@@ -10,11 +10,10 @@ bool is_led_on = false;
 
 void init_start_lights()
 {
-    Serial.begin(9600);
 	strip.begin();
 	strip.setBrightness(255);
     strip.show();
-    Serial.println("Start");
+    Serial.println("Start_lights");
 }
 
 bool play_start_sequence()
