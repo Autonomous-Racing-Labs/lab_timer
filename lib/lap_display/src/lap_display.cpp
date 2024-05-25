@@ -8,6 +8,7 @@ DMD dmd(DISPLAYS_ACROSS, DISPLAYS_DOWN);
 hw_timer_t *update_timer = NULL;
 hw_timer_t *scan_timer = NULL;
 
+bool timerEnabled = false;
 
 unsigned long start_time_ms = 0;
 unsigned long show_lap_time_start_ms = 0;
@@ -42,12 +43,12 @@ void lap_display_begin()
 
 void lap_display_reset_timer()
 {
+    // Stop the timer
+    timerAlarmDisable(update_timer);
     // Reset the displayed time
     dmd.drawString(MIN_X_START, Y_OFFSET, "00", 2, GRAPHICS_NORMAL);
     dmd.drawString(SEC_X_START, Y_OFFSET, ":00", 3, GRAPHICS_NORMAL);
     dmd.drawString(MSEC_X_START, Y_OFFSET, ":00", 3, GRAPHICS_NORMAL);
-    // Stop the timer
-    timerAlarmDisable(update_timer);
 }
 
 void lap_display_start_timer()
@@ -93,4 +94,33 @@ void update_time()
     dmd.drawString(SEC_X_START, Y_OFFSET, timeStrSec, 3, GRAPHICS_NORMAL);
     dmd.drawString(MSEC_X_START, Y_OFFSET, timeStrMsec, 3, GRAPHICS_NORMAL);
 
+}
+
+void disable_timer_interrupts(){
+    if(update_timer != NULL and scan_timer != NULL){
+        timerDetachInterrupt(update_timer);
+        timerDetachInterrupt(scan_timer);
+
+    }
+}
+void enable_timer_interrupts(){
+    if(update_timer != NULL and scan_timer != NULL){
+        // timerAttachInterrupt(update_timer, &update_time, true);
+        // timerAttachInterrupt(scan_timer, &triggerScan, true);
+
+
+        timerAttachInterrupt(scan_timer, &triggerScan, true);
+        // Set alarm to call triggerScan function
+        // Repeat the alarm (third parameter)
+        timerAlarmWrite(scan_timer, 300, true);
+        // Start an alarm
+        timerAlarmEnable(scan_timer);
+
+        timerAttachInterrupt(update_timer, &update_time, true);
+        // Set alarm to call triggerScan function
+        // Repeat the alarm (third parameter)
+        timerAlarmWrite(update_timer, 300, true);
+        // Start an alarm
+        // timerAlarmEnable(update_timer);
+    }
 }

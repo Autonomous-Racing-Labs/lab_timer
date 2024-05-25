@@ -11,6 +11,7 @@
 
 #if defined(ARDUINO) && ARDUINO >= 100
 #include <Arduino.h>
+#include "lap_display.h"
 #endif
 
 #include "freertos/FreeRTOS.h"

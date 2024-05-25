@@ -174,7 +174,12 @@ esp_err_t Freenove_ESP32_WS2812::setAllLedsColor(uint8_t  r, uint8_t  g, uint8_t
 
 esp_err_t Freenove_ESP32_WS2812::show()
 {
-	return rmtWrite(rmt_send, led_data, ledCounts*32);
+    disable_timer_interrupts();
+	esp_err_t res = rmtWrite(rmt_send, led_data, ledCounts*32);
+	delayMicroseconds(1500);
+	enable_timer_interrupts();
+
+	return res;
 }
 
 uint32_t Freenove_ESP32_WS2812::Wheel(byte pos)

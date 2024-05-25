@@ -35,6 +35,8 @@ void lap_display_begin();
 void lap_display_reset_timer();
 void lap_display_start_timer();
 void lap_display_lap();
+void disable_timer_interrupts();
+void enable_timer_interrupts();
 
 void IRAM_ATTR triggerScan();
 

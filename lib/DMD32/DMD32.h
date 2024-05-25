@@ -48,7 +48,7 @@ LED Panel Layout in RAM
 // ######################################################################################################################
 #warning CHANGE THESE TO SEMI-ADJUSTABLE PIN DEFS!
 //ESP32 pins used for the display connection (Using VSPI)
-#define PIN_DMD_nOE		22 		// D22 active low Output Enable, setting this low lights all the LEDs in the selected rows. Can pwm it at very high frequency for brightness control.
+#define PIN_DMD_nOE		15 		// D23 active low Output Enable, setting this low lights all the LEDs in the selected rows. Can pwm it at very high frequency for brightness control.
 #define PIN_DMD_A		19		// D19
 #define PIN_DMD_B		21		// D21
 #define PIN_DMD_CLK		18		// D18_SCK  is SPI Clock if SPI is used

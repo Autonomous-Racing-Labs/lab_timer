@@ -14,7 +14,7 @@ State currentState = INIT;
 const int startBtnPin = 32;  // Pin connected to start button
 bool startBtnPressed = false;
 
-const int lightBarrierPin = 34;
+const int lightBarrierPin = 22;
 bool lightBarrierTriggered = false;
 
 // Function declarations
@@ -29,8 +29,9 @@ void setup()
   Serial.begin(9600);
   pinMode(startBtnPin, INPUT);
   pinMode(lightBarrierPin, INPUT);
-  Serial.println("start state machine, before init");
   initSoftwareModules();
+  delay(1000);
+  Serial.println("start machine");
 }
 
 void loop()
@@ -81,6 +82,7 @@ void initSoftwareModules() {
   // Initialize software modules
   init_start_lights();
   lap_display_begin();
+  lap_display_reset_timer();
 }
 
 void race() {
