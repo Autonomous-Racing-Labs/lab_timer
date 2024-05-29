@@ -1,6 +1,22 @@
 #include <Arduino.h>
+#include <micro_ros_platformio.h>
+
+#include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
+
+#include <rcl/rcl.h>
+#include <rcl/error_handling.h>
+#include <rclc/rclc.h>
+#include <rclc/executor.h>
+
 #include "start_lights.h"
 #include "lap_display.h"
+
+#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
+        "Failed status on line %d: %d. Aborting.\n Fehler bei der Initialisierung: %s\n", __LINE__, (int)temp_rc), rcl_get_error_string(); delay(100); return;}}
+#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
+        "Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);}}
 
 enum State {
   INIT,
@@ -17,6 +33,12 @@ bool startBtnPressed = false;
 const int lightBarrierPin = 22;
 bool lightBarrierTriggered = false;
 
+IPAddress agent_ip(10, 134, 137, 208);
+size_t agent_port = 8888;
+
+char ssid[] = "ITSE Lab";
+char psk[]= "ITSELaboratory";
+
 // Function declarations
 void initSoftwareModules();
 bool playStartSequence();
@@ -30,6 +52,7 @@ void setup()
   pinMode(startBtnPin, INPUT);
   pinMode(lightBarrierPin, INPUT);
   initSoftwareModules();
+  set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
   delay(1000);
   Serial.println("start machine");
 }
@@ -112,4 +135,3 @@ void checkButtonPress() {
     }
   }
 }
-
