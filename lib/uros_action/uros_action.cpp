@@ -11,21 +11,20 @@ int num_of_action_clients = 0;
 void init_uros()
 {
     set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
-    delay(2000);
 }
 
 RosComm::RosComm(const char *action_name, size_t ros_domain) : goal_completed(false), request_accepted(false), curr_position(-1)
 {
     current_action_name = action_name;
 
-    rcl_allocator_t allocator = rcl_get_default_allocator();
+    allocator = rcl_get_default_allocator();
 
     // create init_options
     rcl_init_options_t init_ops = rcl_get_zero_initialized_init_options();
     RCCHECK(rcl_init_options_init(&init_ops, allocator));
     RCCHECK(rcl_init_options_set_domain_id(&init_ops, 25));
     
-    rclc_support_t support;
+    
     RCCHECK(rclc_support_init_with_options(&support, 0, NULL, &init_ops , &allocator));
     
     // create node
@@ -59,7 +58,7 @@ RosComm::RosComm(const char *action_name, size_t ros_domain) : goal_completed(fa
             RosComm::feedback_callback,
             RosComm::result_request_callback,
             RosComm::cancel_request_callback,
-            (void *)&action_client));
+            (void *)this));
 
     num_of_action_clients += 1;
 }
@@ -79,6 +78,10 @@ void RosComm::request_ready_for_start()
     // Send goal request
     ros_goal_request.goal.race_type = 1;
     RCCHECK(rclc_action_send_goal_request(&action_client, &ros_goal_request, NULL));
+}
+
+void RosComm::send_cancel_request(){
+    rclc_action_send_cancel_request(current_goal_handle);
 }
 
 void RosComm::run_action()
@@ -111,10 +114,11 @@ void RosComm::goal_request_callback(rclc_action_goal_handle_t *goal_handle, bool
 {
     (void)context;
     RosComm *self = static_cast<RosComm *>(context);
+    self->current_goal_handle = goal_handle;
 
     race_action_interface__action__Race_SendGoal_Request *request =
         (race_action_interface__action__Race_SendGoal_Request *)goal_handle->ros_goal_request;
-    printf(
+    Serial.printf(
         "%s, Goal request (race_type: %d): %s\n", 
         self->current_action_name,
         request->goal.race_type,
@@ -136,7 +140,7 @@ void RosComm::feedback_callback(rclc_action_goal_handle_t *goal_handle, void *ro
     race_action_interface__action__Race_SendGoal_Request *request =
         (race_action_interface__action__Race_SendGoal_Request *)goal_handle->ros_goal_request;
 
-    printf(
+    Serial.printf(
         "%s, Goal Feedback (race_type: %d)",
         self->current_action_name,
         request->goal.race_type);
@@ -146,7 +150,7 @@ void RosComm::feedback_callback(rclc_action_goal_handle_t *goal_handle, void *ro
 
     int32_t res = feedback->feedback.curr_positon;
     self->curr_position = res;
-    printf("Feedback: %d\n", res);
+    Serial.printf("Feedback: %d\n", res);
 }
 
 void RosComm::result_request_callback(
@@ -161,7 +165,7 @@ void RosComm::result_request_callback(
     race_action_interface__action__Race_SendGoal_Request *request =
         (race_action_interface__action__Race_SendGoal_Request *)goal_handle->ros_goal_request;
 
-    printf(
+    Serial.printf(
         "%s, Goal Result (race_type: %d) [",
         self->current_action_name,
         request->goal.race_type);
@@ -171,18 +175,18 @@ void RosComm::result_request_callback(
 
     if (result->status == GOAL_STATE_SUCCEEDED)
     {
-        printf("%d ", result->result.end_status);
+        Serial.printf("%d ", result->result.end_status);
     }
     else if (result->status == GOAL_STATE_CANCELED)
     {
-        printf("CANCELED ");
+        Serial.printf("CANCELED ");
     }
     else
     {
-        printf("ABORTED ");
+        Serial.printf("ABORTED ");
     }
 
-    printf("\b]\n");
+    Serial.printf("\b]\n");
 
     self->goal_completed = true;
 }
@@ -197,7 +201,7 @@ void RosComm::cancel_request_callback(
     race_action_interface__action__Race_SendGoal_Request *request =
         (race_action_interface__action__Race_SendGoal_Request *)goal_handle->ros_goal_request;
 
-    printf(
+    Serial.printf(
         "%s, Goal cancel request (race_type: %d): %s\n",
         self->current_action_name,
         request->goal.race_type,

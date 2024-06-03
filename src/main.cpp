@@ -45,7 +45,7 @@ void setup()
   pinMode(startBtnPin, INPUT);
   pinMode(lightBarrierPin, INPUT);
 
-  Serial.println("start machine");
+  Serial.printf("start machine\n");
 }
 
 void loop()
@@ -115,6 +115,7 @@ void loop()
         currentState = STOP_RACE;
         startBtnPressed = false;
         lap_display_reset_timer();
+        carA->send_cancel_request();
       }
       break;
 

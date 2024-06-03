@@ -45,6 +45,8 @@ public:
     bool is_ready_for_start();
     void run_action();
     void start_race();
+    void send_cancel_request();
+
     int32_t get_current_position();
     bool is_race_aborted();
 
@@ -62,11 +64,6 @@ private:
     rclc_action_goal_handle_t * goal_handle, bool cancelled,
     void * context);
 
-    static void goalRequestCallbackWrapper(void* context);
-    static void feedbackCallbackWrapper(void* context);
-    static void resultRequestCallbackWrapper(void* context);
-    static void cancelRequestCallbackWrapper(void* context);
-
 
     const char *current_action_name;
 
@@ -74,10 +71,13 @@ private:
     bool request_accepted;
     int32_t curr_position;
 
+    rcl_allocator_t allocator;
+    rclc_support_t support;
     rcl_node_t node;
     rclc_action_client_t action_client;
     rclc_executor_t executor;
 
+    rclc_action_goal_handle_t *current_goal_handle;
 
     race_action_interface__action__Race_FeedbackMessage ros_feedback;
     race_action_interface__action__Race_GetResult_Response ros_result_response;
