@@ -12,4 +12,5 @@ The display type is called HUB12 because it has only white leds.
 # micro agent
 start the micro agent as docker container
 
-sudo docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:iron serial --dev /dev/ttyUSB0 -v6
+sudo docker run -it --rm -v /dev:/dev -v /dev/shm:/dev/shm --privileged --net=host microros/micro-ros-agent:iron udp4 -p 8888 -v6
+

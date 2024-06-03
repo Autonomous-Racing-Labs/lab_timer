@@ -1,31 +1,23 @@
 #include <Arduino.h>
-#include <micro_ros_platformio.h>
-
-#include <stdio.h>
-#include <unistd.h>
-#include <pthread.h>
-
-#include <rcl/rcl.h>
-#include <rcl/error_handling.h>
-#include <rclc/rclc.h>
-#include <rclc/executor.h>
 
 #include "start_lights.h"
 #include "lap_display.h"
-
-#define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
-        "Failed status on line %d: %d. Aborting.\n Fehler bei der Initialisierung: %s\n", __LINE__, (int)temp_rc), rcl_get_error_string(); delay(100); return;}}
-#define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){Serial.printf( \
-        "Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);}}
+#include "uros_action.h"
 
 enum State {
   INIT,
+  AWAIT_START_BTN,
+  REQUEST_READY_STATUS,
   PLAY_START_SEQUENCE,
+  START_RACE,
   RACE,
   STOP_RACE
 };
 
 State currentState = INIT;
+
+RosComm* carA = nullptr;
+// RosComm* carB = nullptr;
 
 const int startBtnPin = 32;  // Pin connected to start button
 bool startBtnPressed = false;
@@ -33,11 +25,12 @@ bool startBtnPressed = false;
 const int lightBarrierPin = 22;
 bool lightBarrierTriggered = false;
 
-IPAddress agent_ip(10, 134, 137, 208);
-size_t agent_port = 8888;
+unsigned long startRequestReady_ms = 0;
+const unsigned long requestReadyTimeout_ms = 10000;
 
-char ssid[] = "ITSE Lab";
-char psk[]= "ITSELaboratory";
+bool is_a_ready = false;
+bool is_b_ready = false;
+bool is_timeout = false;
 
 // Function declarations
 void initSoftwareModules();
@@ -48,40 +41,76 @@ void checkButtonPress();
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(startBtnPin, INPUT);
   pinMode(lightBarrierPin, INPUT);
-  initSoftwareModules();
-  set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
-  delay(1000);
+
   Serial.println("start machine");
 }
 
 void loop()
 {
-  checkButtonPress();
-  
+
   switch (currentState) {
     case INIT:
+      initSoftwareModules();
+      delay(10);
+      currentState = AWAIT_START_BTN;
+      is_a_ready = false;
+      is_b_ready = false;
+      is_timeout = false;
+      break;
+
+    case AWAIT_START_BTN:
       if (startBtnPressed) {
         Serial.println("start_triggered");
-        currentState = PLAY_START_SEQUENCE;
+        currentState = REQUEST_READY_STATUS;
         startBtnPressed = false;
-        trigger_start();
+        carA->request_ready_for_start();
+        // carB->request_ready_for_start();
+        startRequestReady_ms = millis();
       }
+      break;
+    
+    case REQUEST_READY_STATUS:
+      is_a_ready = carA->is_ready_for_start();
+      // is_b_ready = carB->is_ready_for_start();
+      is_timeout = false;
+
+      if (millis()-startRequestReady_ms > requestReadyTimeout_ms){
+        is_timeout = true;
+      }
+
+      if ((is_a_ready && is_b_ready) || ((is_a_ready || is_b_ready) && is_timeout)){
+        Serial.println("cars are ready");
+        currentState = PLAY_START_SEQUENCE;
+        trigger_start();
+      }else if (is_timeout)
+      {
+        Serial.println("timeout no car avilable");
+        currentState = AWAIT_START_BTN;
+      }
+      
       break;
 
     case PLAY_START_SEQUENCE:
       if (play_start_sequence()) {
         Serial.println("start sequence_end");
-        currentState = RACE;
-        lap_display_start_timer();
+        currentState = START_RACE;
+        
       }
+      break;
+
+    case START_RACE:
+      lap_display_start_timer();
+      //goal start race
+      currentState = RACE;
       break;
 
     case RACE:
       race();
-      if (startBtnPressed) {
+      // if (startBtnPressed || action_server_is_canceled()) {
+      if (startBtnPressed){
         Serial.println("end_race");
         currentState = STOP_RACE;
         startBtnPressed = false;
@@ -99,13 +128,27 @@ void loop()
       }
       break;
   }
+
+  checkButtonPress();
+  carA->run_action();
+  // carB->run_action();
 }
 
 void initSoftwareModules() {
   // Initialize software modules
+  Serial.println("now init uros");
+  init_uros();
+  Serial.println("create Roscomm instances");
+
+  carA = new RosComm("race", 25);
+  // carB = new RosComm("raceB", 26);
+
   init_start_lights();
   lap_display_begin();
   lap_display_reset_timer();
+
+  Serial.println("init done");
+
 }
 
 void race() {
@@ -116,6 +159,13 @@ void race() {
     lightBarrierTriggered = true;
   }else{
     lightBarrierTriggered = false;
+  }
+
+  if(millis() % 5000 == 0){
+    Serial.print("carA curr pos: ");
+    Serial.println(carA->get_current_position());
+    // Serial.print("carB curr pos: ");
+    // Serial.println(carB->get_current_position());
   }
 }
 
