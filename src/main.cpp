@@ -17,7 +17,7 @@ enum State {
 State currentState = INIT;
 
 RosComm* carA = nullptr;
-// RosComm* carB = nullptr;
+RosComm* carB = nullptr;
 
 const int startBtnPin = 32;  // Pin connected to start button
 bool startBtnPressed = false;
@@ -114,19 +114,15 @@ void loop()
         Serial.println("end_race");
         currentState = STOP_RACE;
         startBtnPressed = false;
-        lap_display_reset_timer();
-        carA->send_cancel_request();
       }
       break;
 
     case STOP_RACE:
-      stopRace();
-      if (startBtnPressed) {
-        Serial.println("goto play start sequence");
-        currentState = PLAY_START_SEQUENCE;
-        startBtnPressed = false;
-        trigger_start();
-      }
+      lap_display_reset_timer();
+      carA->send_cancel_request();
+
+      currentState = AWAIT_START_BTN;
+      
       break;
   }
 

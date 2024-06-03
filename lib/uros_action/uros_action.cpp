@@ -107,9 +107,9 @@ bool RosComm::is_race_aborted(){
 }
 
 void RosComm::start_race(){
-    // RCCHECK(rcl_action_send_result_request(&(rcl_action_client_t)action_client, &ros_goal_request, NULL));
-    int i = 0;
+    RCCHECK(rclc_action_send_result_request(current_goal_handle));
 }
+
 void RosComm::goal_request_callback(rclc_action_goal_handle_t *goal_handle, bool accepted, void *context)
 {
     (void)context;
@@ -159,8 +159,6 @@ void RosComm::result_request_callback(
 {
     (void)context;
     RosComm *self = static_cast<RosComm *>(context);
-
-    static size_t goal_count = 1;
 
     race_action_interface__action__Race_SendGoal_Request *request =
         (race_action_interface__action__Race_SendGoal_Request *)goal_handle->ros_goal_request;
