@@ -54,5 +54,6 @@ bool play_start_sequence()
 
 void trigger_start()
 {
+    RndmStartTime = random(1000, 3000);
     StartTime = millis();
 }
