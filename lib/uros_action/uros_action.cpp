@@ -6,59 +6,92 @@ char psk[] = "ITSELaboratory";
 IPAddress agent_ip(10, 134, 137, 227);
 size_t agent_port = 8888;
 
+rcl_allocator_t allocator;
+rclc_support_t support;
+rcl_node_t node;
+rclc_executor_t executor;
+
+std::vector<action_client_s*> action_clients_v;
+
 int num_of_action_clients = 0;
 
-void init_uros()
+void init_uros(size_t ros_domain)
 {
     set_microros_wifi_transports(ssid, psk, agent_ip, agent_port);
-}
-
-RosComm::RosComm(const char *action_name, size_t ros_domain) : goal_completed(false), request_accepted(false), curr_position(-1)
-{
-    current_action_name = action_name;
 
     allocator = rcl_get_default_allocator();
 
     // create init_options
     rcl_init_options_t init_ops = rcl_get_zero_initialized_init_options();
     RCCHECK(rcl_init_options_init(&init_ops, allocator));
-    RCCHECK(rcl_init_options_set_domain_id(&init_ops, 25));
-    
-    
+    RCCHECK(rcl_init_options_set_domain_id(&init_ops, ros_domain));
+
     RCCHECK(rclc_support_init_with_options(&support, 0, NULL, &init_ops , &allocator));
-    
+
     // create node
     node = rcl_get_zero_initialized_node();
-    RCCHECK(rclc_node_init_default(&node, "race_action_client_rcl", "", &support));
+    RCCHECK(rclc_node_init_default(&node, "race_action_node", "", &support));
 
-    // Create action client
-    RCCHECK(
-        rclc_action_client_init_default(
-            &action_client,
-            &node,
-            ROSIDL_GET_ACTION_TYPE_SUPPORT(race_action_interface, Race),
-            action_name));
+}
+
+void run_uros(){
+    rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+    usleep(100000);
+}
+
+void finish_init(){
+    std::for_each(action_clients_v.begin(), action_clients_v.end(),
+        [](action_client_s * client){
+            // Create action client
+            RCCHECK(
+                rclc_action_client_init_default(
+                    client->_client,
+                    &node,
+                    ROSIDL_GET_ACTION_TYPE_SUPPORT(race_action_interface, Race),
+                    client->_action_name));
+        }
+    );
 
     // Create executor
     rclc_executor_init(&executor, &support.context, 1, &allocator);
+
+    std::for_each(action_clients_v.begin(), action_clients_v.end(),
+        [](action_client_s * client){
+        RCCHECK(
+            rclc_executor_add_action_client(
+                &executor,
+                client->_client,
+                10,
+                client->_ros_result_response,
+                client->_ros_feedback,
+                RosComm::goal_request_callback,
+                RosComm::feedback_callback,
+                RosComm::result_request_callback,
+                RosComm::cancel_request_callback,
+                (void *)client->p_instance)
+                
+            );
+        }
+    );
+
+}
+
+RosComm::RosComm(const char *action_name) : goal_completed(false), request_accepted(false), curr_position(-1)
+{
+    this_client = {
+        action_name, 
+        &action_client, 
+        &ros_result_response,
+        &ros_feedback,    
+        this};
+    action_clients_v.push_back(&this_client);
+
+    Serial.println(num_of_action_clients);
 
     // Allocate msg memory
     ros_feedback.feedback.curr_positon = 0;
 
     ros_result_response.result.end_status = 0;
-
-    RCCHECK(
-        rclc_executor_add_action_client(
-            &executor,
-            &action_client,
-            10,
-            &ros_result_response,
-            &ros_feedback,
-            RosComm::goal_request_callback,
-            RosComm::feedback_callback,
-            RosComm::result_request_callback,
-            RosComm::cancel_request_callback,
-            (void *)this));
 
     num_of_action_clients += 1;
 }
@@ -82,15 +115,6 @@ void RosComm::request_ready_for_start()
 
 void RosComm::send_cancel_request(){
     rclc_action_send_cancel_request(current_goal_handle);
-}
-
-void RosComm::run_action()
-{
-    if (!goal_completed)
-    {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
-        usleep(100000);
-    }
 }
 
 bool RosComm::is_ready_for_start()

@@ -31,27 +31,43 @@
         "Failed status on line %d: %d. Continuing.\n", __LINE__, (int)temp_rc);}}
 
 
-void init_uros();
-
+void init_uros(size_t ros_domain);
+void run_uros();
+void finish_init();
 
 extern int num_of_action_clients;
 
+extern rcl_allocator_t allocator;
+extern rclc_support_t support;
+extern rcl_node_t node;
+extern rclc_executor_t executor;
+
+class RosComm;
+
+struct action_client_s
+{
+    const char* _action_name;
+    rclc_action_client_t* _client;
+    race_action_interface__action__Race_GetResult_Response* _ros_result_response;
+    race_action_interface__action__Race_FeedbackMessage* _ros_feedback;
+    RosComm* p_instance;
+};
+
+extern std::vector<action_client_s*> action_clients_v;
+
 class RosComm {
 public:
-    RosComm(const char *action_name, size_t ros_domain);                  // Konstruktor
+    RosComm(const char *action_name);                  // Konstruktor
     ~RosComm();
 
     void request_ready_for_start();
     bool is_ready_for_start();
-    void run_action();
     void start_race();
     void send_cancel_request();
 
     int32_t get_current_position();
     bool is_race_aborted();
 
-
-private:
     static void goal_request_callback(rclc_action_goal_handle_t * goal_handle, bool accepted, void * context);
     
     static void feedback_callback(rclc_action_goal_handle_t * goal_handle, void * ros_feedback, void * context);
@@ -64,18 +80,15 @@ private:
     rclc_action_goal_handle_t * goal_handle, bool cancelled,
     void * context);
 
-
+private:
     const char *current_action_name;
 
+    action_client_s this_client;
     bool goal_completed;
     bool request_accepted;
     int32_t curr_position;
 
-    rcl_allocator_t allocator;
-    rclc_support_t support;
-    rcl_node_t node;
     rclc_action_client_t action_client;
-    rclc_executor_t executor;
 
     rclc_action_goal_handle_t *current_goal_handle;
 
@@ -84,7 +97,6 @@ private:
     race_action_interface__action__Race_SendGoal_Request ros_goal_request;
 
 };
-
 
 
 #endif
