@@ -3,6 +3,7 @@
 #include "start_lights.h"
 #include "lap_display.h"
 #include "uros_action.h"
+#include "glob_defines.h"
 
 enum State {
   INIT,
@@ -74,7 +75,7 @@ void loop()
     
     case REQUEST_READY_STATUS:
       is_a_ready = carA->is_ready_for_start();
-      // is_b_ready = carB->is_ready_for_start();
+      is_b_ready = carB->is_ready_for_start();
       is_timeout = false;
 
       if (millis()-startRequestReady_ms > requestReadyTimeout_ms){
@@ -97,12 +98,13 @@ void loop()
       if (play_start_sequence()) {
         Serial.println("start sequence_end");
         currentState = START_RACE;
-        
       }
       break;
 
     case START_RACE:
-      lap_display_start_timer();
+      carA->start_race();
+      carB->start_race();
+      // lap_display_start_timer();
       //goal start race
       currentState = RACE;
       break;
@@ -110,7 +112,7 @@ void loop()
     case RACE:
       race();
       // if (startBtnPressed || action_server_is_canceled()) {
-      if (startBtnPressed){
+      if (startBtnPressed || carA->is_race_aborted() || carB->is_race_aborted()){
         Serial.println("end_race");
         currentState = STOP_RACE;
         startBtnPressed = false;
@@ -120,6 +122,7 @@ void loop()
     case STOP_RACE:
       lap_display_reset_timer();
       carA->send_cancel_request();
+      carB->send_cancel_request();
 
       currentState = AWAIT_START_BTN;
       
@@ -127,18 +130,19 @@ void loop()
   }
 
   checkButtonPress();
-  carA->run_action();
-  // carB->run_action();
+  run_uros();
 }
+
 
 void initSoftwareModules() {
   // Initialize software modules
   Serial.println("now init uros");
-  init_uros();
+  init_uros(1);
   Serial.println("create Roscomm instances");
 
-  carA = new RosComm("race", 25);
-  // carB = new RosComm("raceB", 26);
+  carA = new RosComm("raceA");
+  carB = new RosComm("raceB");
+  finish_init();
 
   init_start_lights();
   lap_display_begin();
@@ -148,12 +152,33 @@ void initSoftwareModules() {
 
 }
 
+int get_car_on_finish_line(){
+  int pos_A = carA->get_current_position();
+  int pos_B = carB->get_current_position();
+
+  if(pos_A < 0) return CAR_B;   // car A isn't available
+  if(pos_B < 0) return CAR_A;   // car B isn't available
+  if(pos_A > pos_B)
+    return CAR_A;
+  else
+    return CAR_B;
+
+}
+
 void race() {
   // Race logic
   // Pseudo code: Measure lap times, display current lap, etc.
+  
   if(digitalRead(lightBarrierPin) == HIGH && lightBarrierTriggered == false){
     lap_display_lap();
+    
+    int current_car = get_car_on_finish_line();
+    Serial.print("car ");
+    Serial.print(current_car);
+    Serial.println(" has crossed the finish line");
+
     lightBarrierTriggered = true;
+
   }else{
     lightBarrierTriggered = false;
   }
@@ -161,8 +186,8 @@ void race() {
   if(millis() % 5000 == 0){
     Serial.print("carA curr pos: ");
     Serial.println(carA->get_current_position());
-    // Serial.print("carB curr pos: ");
-    // Serial.println(carB->get_current_position());
+    Serial.print("carB curr pos: ");
+    Serial.println(carB->get_current_position());
   }
 }
 
