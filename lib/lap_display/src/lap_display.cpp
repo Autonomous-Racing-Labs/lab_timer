@@ -1,6 +1,5 @@
 #include "lap_display.h"
 
-
 DMD dmd(DISPLAYS_ACROSS, DISPLAYS_DOWN);
 
 // Timer setup
@@ -10,8 +9,16 @@ hw_timer_t *scan_timer = NULL;
 
 bool timerEnabled = false;
 
-unsigned long start_time_ms = 0;
-unsigned long show_lap_time_start_ms = 0;
+unsigned long start_time_ms_A = 0;
+unsigned long start_time_ms_B = 0;
+unsigned long show_lap_time_start_ms_A = 0;
+unsigned long show_lap_time_start_ms_B = 0;
+
+unsigned long display_time_A = 0;
+unsigned long display_time_B = 0;
+
+unsigned int min_lap_time_A = 0;
+unsigned int min_lap_time_B = 0;
 
 void lap_display_begin()
 {
@@ -38,7 +45,6 @@ void lap_display_begin()
     // clear/init the DMD pixels held in RAM
     dmd.clearScreen(true); // true is normal (all pixels off), false is negative (all pixels on)
     dmd.selectFont(Arial_Black_16);
-
 }
 
 void lap_display_reset_timer()
@@ -46,21 +52,78 @@ void lap_display_reset_timer()
     // Stop the timer
     timerAlarmDisable(update_timer);
     // Reset the displayed time
-    dmd.drawString(MIN_X_START, Y_OFFSET, "00", 2, GRAPHICS_NORMAL);
-    dmd.drawString(SEC_X_START, Y_OFFSET, ":00", 3, GRAPHICS_NORMAL);
-    dmd.drawString(MSEC_X_START, Y_OFFSET, ":00", 3, GRAPHICS_NORMAL);
+    reset_displayed_time_A();
+    reset_displayed_time_B();
 }
-
-void lap_display_start_timer()
+void reset_displayed_time_A()
+{
+    dmd.drawString(SEC_X_START, Y_OFFSET, "00", 2, GRAPHICS_NORMAL);
+    dmd.drawString(MSEC_X_START, Y_OFFSET, ":0", 2, GRAPHICS_NORMAL);
+}
+void reset_displayed_time_B()
+{
+    dmd.drawString(SEC_X_START + DISPLAY_WIDTH, Y_OFFSET, "00", 2, GRAPHICS_NORMAL);
+    dmd.drawString(MSEC_X_START + DISPLAY_WIDTH, Y_OFFSET, ":0", 2, GRAPHICS_NORMAL);
+}
+void lap_display_start_timer_A()
 {
     // Start the timer
-    start_time_ms = millis();
+    start_time_ms_A = millis();
+    timerAlarmEnable(update_timer);
+}
+void lap_display_start_timer_B()
+{
+    // Start the timer
+    start_time_ms_B = millis();
     timerAlarmEnable(update_timer);
 }
 
-void lap_display_lap()
+void lap_display_lap_A()
 {
-    show_lap_time_start_ms = millis();
+    show_lap_time_start_ms_A = millis();
+}
+void lap_display_lap_B()
+{
+    show_lap_time_start_ms_B = millis();
+}
+
+void lap_display_start_new_lap_A()
+{
+    unsigned long lap_time = 0;
+
+    if (start_time_ms_A > 0)
+    {
+        lap_time = millis() - start_time_ms_A;
+        lap_display_lap_A();
+    }
+    if(min_lap_time_A == 0 || lap_time < min_lap_time_A){
+        min_lap_time_A = lap_time;
+    }
+    lap_display_start_timer_A();
+
+}
+
+void lap_display_start_new_lap_B()
+{
+    unsigned long lap_time = 0;
+
+    if (start_time_ms_B > 0)
+    {
+        lap_time = millis() - start_time_ms_B;
+        lap_display_lap_B();
+    }
+    if(min_lap_time_B == 0 || lap_time < min_lap_time_B){
+        min_lap_time_B = lap_time;
+    }
+    lap_display_start_timer_B();
+
+}
+
+void display_best_times(){
+    timerAlarmDisable(update_timer);
+
+    draw_time(min_lap_time_A+millis(), 0);
+    draw_time(min_lap_time_B+millis(), DISPLAY_WIDTH);
 }
 
 void triggerScan()
@@ -68,46 +131,66 @@ void triggerScan()
     dmd.scanDisplayBySPI();
 }
 
-
-
 void update_time()
 {
-    if(millis()-show_lap_time_start_ms < SHOW_LAP_TIME_FOR_MS){
-        // stop the display time updates for SHOW_LAP_TIME_FOR_MS
-        return;
-    }
-    // Get the current time
-    unsigned long currentTime = millis()-start_time_ms;
-    unsigned long milliseconds = currentTime % 1000;
-    unsigned long seconds = (currentTime / 1000) % 60;
-    unsigned long minutes = (currentTime / 60000) % 60;
-    // Convert time to string format
-    char timeStrMin[3]; // Format: "mm:ss:msms"
-    sprintf(timeStrMin, "%02lu", minutes);
-    char timeStrSec[4]; // Format: "mm:ss:msms"
-    sprintf(timeStrSec, ":%02lu", seconds);
-    char timeStrMsec[4]; // Format: "mm:ss:msms"
-    sprintf(timeStrMsec, ":%02lu", milliseconds / 10);
-    // Display the time
     dmd.clearScreen(true);
-    dmd.drawString(MIN_X_START, Y_OFFSET, timeStrMin, 2, GRAPHICS_NORMAL);
-    dmd.drawString(SEC_X_START, Y_OFFSET, timeStrSec, 3, GRAPHICS_NORMAL);
-    dmd.drawString(MSEC_X_START, Y_OFFSET, timeStrMsec, 3, GRAPHICS_NORMAL);
-
+    update_time_A();
+    update_time_B();
 }
 
-void disable_timer_interrupts(){
-    if(update_timer != NULL and scan_timer != NULL){
+void update_time_A()
+{
+    if (millis() - show_lap_time_start_ms_A < SHOW_LAP_TIME_FOR_MS)
+    {
+        // stop the display time updates for SHOW_LAP_TIME_FOR_MS
+    }
+    else
+    {
+        display_time_A = start_time_ms_A;
+    }
+    draw_time(display_time_A, 0);
+}
+void update_time_B()
+{
+    if (millis() - show_lap_time_start_ms_B < SHOW_LAP_TIME_FOR_MS)
+    {
+        // stop the display time updates for SHOW_LAP_TIME_FOR_MS
+    }
+    else
+    {
+        display_time_B = start_time_ms_B;
+    }
+    draw_time(display_time_B, DISPLAY_WIDTH);
+}
+void draw_time(unsigned long start_time_ms, int x_offset)
+{
+    // Get the current time
+    unsigned long currentTime = millis() - start_time_ms;
+    unsigned long milliseconds = (currentTime % 1000) / 10;
+    unsigned long seconds = (currentTime / 1000) % 60;
+    // Convert time to string format
+    char timeStrSec[3]; // Format: "ss:ms"
+    sprintf(timeStrSec, "%02lu", seconds);
+    char timeStrMsec[3]; // Format: "ss:ms"
+    sprintf(timeStrMsec, ":%01lu", milliseconds / 10);
+    // Display the time
+    dmd.drawString(SEC_X_START + x_offset, Y_OFFSET, timeStrSec, 2, GRAPHICS_NORMAL);
+    dmd.drawString(MSEC_X_START + x_offset, Y_OFFSET, timeStrMsec, 2, GRAPHICS_NORMAL);
+}
+void disable_timer_interrupts()
+{
+    if (update_timer != NULL and scan_timer != NULL)
+    {
         timerDetachInterrupt(update_timer);
         timerDetachInterrupt(scan_timer);
-
     }
 }
-void enable_timer_interrupts(){
-    if(update_timer != NULL and scan_timer != NULL){
+void enable_timer_interrupts()
+{
+    if (update_timer != NULL and scan_timer != NULL)
+    {
         // timerAttachInterrupt(update_timer, &update_time, true);
         // timerAttachInterrupt(scan_timer, &triggerScan, true);
-
 
         timerAttachInterrupt(scan_timer, &triggerScan, true);
         // Set alarm to call triggerScan function
@@ -120,7 +203,5 @@ void enable_timer_interrupts(){
         // Set alarm to call triggerScan function
         // Repeat the alarm (third parameter)
         timerAlarmWrite(update_timer, 300, true);
-        // Start an alarm
-        // timerAlarmEnable(update_timer);
     }
 }

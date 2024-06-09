@@ -23,9 +23,11 @@ This module shows the lap times on the dmd. It implements the necessary function
 #define DISPLAYS_ACROSS 2
 #define DISPLAYS_DOWN 1
 
-#define MIN_X_START 0
-#define SEC_X_START 18
-#define MSEC_X_START 40
+#define SEC_X_START 0
+#define MSEC_X_START 18
+
+#define DISPLAY_WIDTH 32
+#define DISPLAY_HEIGHT 16
 
 #define Y_OFFSET 1
 
@@ -33,14 +35,25 @@ This module shows the lap times on the dmd. It implements the necessary function
 
 void lap_display_begin();
 void lap_display_reset_timer();
-void lap_display_start_timer();
-void lap_display_lap();
+void reset_displayed_time_A();
+void reset_displayed_time_B();
+void lap_display_start_timer_A();
+void lap_display_start_timer_B();
+void lap_display_lap_A();
+void lap_display_lap_B();
 void disable_timer_interrupts();
 void enable_timer_interrupts();
+void draw_time(unsigned long start_time_ms, int x_offset);
+
+void lap_display_start_new_lap_A();
+void lap_display_start_new_lap_B();
+void display_best_times();
 
 void IRAM_ATTR triggerScan();
 
 void IRAM_ATTR update_time();
+void IRAM_ATTR update_time_A();
+void IRAM_ATTR update_time_B();
 
 
 // Timer setup
@@ -49,8 +62,15 @@ extern hw_timer_t *update_timer;
 extern hw_timer_t *scan_timer;
 
 
-extern unsigned long start_time_ms;
-extern unsigned long show_lap_time_start_ms;
+extern unsigned long start_time_ms_A;
+extern unsigned long start_time_ms_B;
+extern unsigned long show_lap_time_start_ms_A;
+extern unsigned long show_lap_time_start_ms_B;
 
+extern unsigned long display_time_A;
+extern unsigned long display_time_B;
+
+extern unsigned int min_lap_time_A;
+extern unsigned int min_lap_time_B;
 
 #endif

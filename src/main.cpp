@@ -64,6 +64,7 @@ void loop()
 
     case AWAIT_START_BTN:
       if (startBtnPressed) {
+        lap_display_reset_timer();
         Serial.println("start_triggered");
         currentState = REQUEST_READY_STATUS;
         startBtnPressed = false;
@@ -102,10 +103,10 @@ void loop()
       break;
 
     case START_RACE:
+      //goal start race
       carA->start_race();
       carB->start_race();
-      // lap_display_start_timer();
-      //goal start race
+
       currentState = RACE;
       break;
 
@@ -120,7 +121,7 @@ void loop()
       break;
 
     case STOP_RACE:
-      lap_display_reset_timer();
+      display_best_times();
       carA->send_cancel_request();
       carB->send_cancel_request();
 
@@ -170,12 +171,16 @@ void race() {
   // Pseudo code: Measure lap times, display current lap, etc.
   
   if(digitalRead(lightBarrierPin) == HIGH && lightBarrierTriggered == false){
-    lap_display_lap();
-    
     int current_car = get_car_on_finish_line();
     Serial.print("car ");
     Serial.print(current_car);
     Serial.println(" has crossed the finish line");
+
+    if(current_car == CAR_A){
+      lap_display_start_new_lap_A();
+    }else if(current_car == CAR_B){
+      lap_display_start_new_lap_B();
+    }
 
     lightBarrierTriggered = true;
 
