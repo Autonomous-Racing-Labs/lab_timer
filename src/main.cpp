@@ -18,7 +18,7 @@ enum State {
 State currentState = INIT;
 
 RosComm* carA = nullptr;
-RosComm* carB = nullptr;
+// RosComm* carB = nullptr;
 
 const int startBtnPin = 32;  // Pin connected to start button
 bool startBtnPressed = false;
@@ -70,31 +70,34 @@ void loop()
         Serial.println("start_triggered");
         currentState = REQUEST_READY_STATUS;
         startBtnPressed = false;
+        Serial.println("request ready for start / send goal request");
         carA->request_ready_for_start();
-        carB->request_ready_for_start();
+        // carB->request_ready_for_start();
         startRequestReady_ms = millis();
+
+        Serial.println("now wait for cars");
       }
       break;
     
     case REQUEST_READY_STATUS:
-      is_a_ready = carA->is_ready_for_start();
-      is_b_ready = carB->is_ready_for_start();
+      // is_a_ready = carA->is_ready_for_start();
+      // is_b_ready = carB->is_ready_for_start();
       is_timeout = false;
 
-      if (millis()-startRequestReady_ms > requestReadyTimeout_ms){
-        is_timeout = true;
-      }
+      // if (millis()-startRequestReady_ms > requestReadyTimeout_ms){
+      //   is_timeout = true;
+      // }
 
-      if ((is_a_ready && is_b_ready) || ((is_a_ready || is_b_ready) && is_timeout)){
-        Serial.println("cars are ready");
-        currentState = PLAY_START_SEQUENCE;
-        active_cars = CAR_A*is_a_ready+CAR_B*is_b_ready;
-        trigger_start();
-      }else if (is_timeout)
-      {
-        Serial.println("timeout no car avilable");
-        currentState = AWAIT_START_BTN;
-      }
+      // if ((is_a_ready && is_b_ready) || ((is_a_ready || is_b_ready) && is_timeout)){
+      //   Serial.println("cars are ready, now play start sequence");
+      //   currentState = PLAY_START_SEQUENCE;
+      //   active_cars = CAR_A*is_a_ready+CAR_B*is_b_ready;
+      //   trigger_start();
+      // }else if (is_timeout)
+      // {
+      //   Serial.println("timeout no car avilable");
+      //   currentState = AWAIT_START_BTN;
+      // }
       
       break;
 
@@ -106,16 +109,18 @@ void loop()
       break;
 
     case START_RACE:
+      Serial.println("start race, send_result_request");
       //goal start race
       carA->start_race();
-      carB->start_race();
+      // carB->start_race();
 
       currentState = RACE;
+      Serial.println("now got to race state :)");
       break;
 
     case RACE:
       race();
-      if (startBtnPressed || carA->is_race_aborted() || carB->is_race_aborted()){
+      if (startBtnPressed || carA->is_race_aborted() ){//|| carB->is_race_aborted()){
         Serial.println("end_race");
         currentState = STOP_RACE;
         startBtnPressed = false;
@@ -125,7 +130,7 @@ void loop()
     case STOP_RACE:
       display_best_times();
       carA->send_cancel_request();
-      carB->send_cancel_request();
+      // carB->send_cancel_request();
 
       currentState = AWAIT_START_BTN;
       
@@ -140,11 +145,11 @@ void loop()
 void initSoftwareModules() {
   // Initialize software modules
   Serial.println("now init uros");
-  init_uros(1);
+  init_uros(25);
   Serial.println("create Roscomm instances");
 
-  carA = new RosComm("raceA");
-  carB = new RosComm("raceB");
+  carA = new RosComm("race");
+  // carB = new RosComm("raceB");
   finish_init();
 
   init_start_lights();
@@ -160,12 +165,12 @@ int get_car_on_finish_line(){
   if(active_cars == CAR_B) return CAR_B; // car B isn't available
 
   int pos_A = carA->get_current_position();
-  int pos_B = carB->get_current_position();
+  // int pos_B = carB->get_current_position();
 
-  if(pos_A > pos_B)
+  // if(pos_A > pos_B)
     return CAR_A;
-  else
-    return CAR_B;
+  // else
+  //   return CAR_B;
 
 }
 
@@ -194,8 +199,8 @@ void race() {
   if(millis() % 5000 == 0){
     Serial.print("carA curr pos: ");
     Serial.println(carA->get_current_position());
-    Serial.print("carB curr pos: ");
-    Serial.println(carB->get_current_position());
+    // Serial.print("carB curr pos: ");
+    // Serial.println(carB->get_current_position());
   }
 }
 

@@ -36,7 +36,6 @@ void init_uros(size_t ros_domain)
 
 void run_uros(){
     rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
-    usleep(100000);
 }
 
 void finish_init(){
@@ -53,7 +52,7 @@ void finish_init(){
     );
 
     // Create executor
-    rclc_executor_init(&executor, &support.context, 1, &allocator);
+    rclc_executor_init(&executor, &support.context, action_clients_v.size(), &allocator);
 
     std::for_each(action_clients_v.begin(), action_clients_v.end(),
         [](action_client_s * client){
@@ -131,6 +130,7 @@ bool RosComm::is_race_aborted(){
 }
 
 void RosComm::start_race(){
+    // Serial.println("__uros action.cpp send_result_request");
     RCCHECK(rclc_action_send_result_request(current_goal_handle));
 }
 
