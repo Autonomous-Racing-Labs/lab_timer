@@ -33,6 +33,8 @@ bool is_a_ready = false;
 bool is_b_ready = false;
 bool is_timeout = false;
 
+int active_cars = 0;
+
 // Function declarations
 void initSoftwareModules();
 bool playStartSequence();
@@ -69,7 +71,7 @@ void loop()
         currentState = REQUEST_READY_STATUS;
         startBtnPressed = false;
         carA->request_ready_for_start();
-        // carB->request_ready_for_start();
+        carB->request_ready_for_start();
         startRequestReady_ms = millis();
       }
       break;
@@ -86,6 +88,7 @@ void loop()
       if ((is_a_ready && is_b_ready) || ((is_a_ready || is_b_ready) && is_timeout)){
         Serial.println("cars are ready");
         currentState = PLAY_START_SEQUENCE;
+        active_cars = CAR_A*is_a_ready+CAR_B*is_b_ready;
         trigger_start();
       }else if (is_timeout)
       {
@@ -112,7 +115,6 @@ void loop()
 
     case RACE:
       race();
-      // if (startBtnPressed || action_server_is_canceled()) {
       if (startBtnPressed || carA->is_race_aborted() || carB->is_race_aborted()){
         Serial.println("end_race");
         currentState = STOP_RACE;
@@ -154,11 +156,12 @@ void initSoftwareModules() {
 }
 
 int get_car_on_finish_line(){
+  if(active_cars == CAR_A) return CAR_A; // car A isn't available
+  if(active_cars == CAR_B) return CAR_B; // car B isn't available
+
   int pos_A = carA->get_current_position();
   int pos_B = carB->get_current_position();
 
-  if(pos_A < 0) return CAR_B;   // car A isn't available
-  if(pos_B < 0) return CAR_A;   // car B isn't available
   if(pos_A > pos_B)
     return CAR_A;
   else
