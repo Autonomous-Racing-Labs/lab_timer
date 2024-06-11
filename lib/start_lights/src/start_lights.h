@@ -26,5 +26,7 @@ extern unsigned long RndmStartTime;
 void init_start_lights();
 bool play_start_sequence();
 void trigger_start();
+void signal_get_ready();
+void lights_off();
 
 #endif

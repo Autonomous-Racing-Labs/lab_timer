@@ -43,7 +43,8 @@ void lap_display_lap_A();
 void lap_display_lap_B();
 void disable_timer_interrupts();
 void enable_timer_interrupts();
-void draw_time(unsigned long start_time_ms, int x_offset);
+void draw_time_A(unsigned long display_time_ms);
+void draw_time_B(unsigned long display_time_ms);
 
 void lap_display_start_new_lap_A();
 void lap_display_start_new_lap_B();

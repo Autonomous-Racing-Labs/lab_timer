@@ -15,7 +15,10 @@ void init_start_lights()
     strip.show();
     Serial.println("Start_lights");
 }
-
+void lights_off(){
+    strip.setAllLedsColorData(0);
+    strip.show();
+}
 bool play_start_sequence()
 {
     unsigned long TimeIntoStart = millis() - StartTime;
@@ -43,8 +46,7 @@ bool play_start_sequence()
     {
         if(is_led_on){
             is_led_on = false;
-            strip.setAllLedsColorData(0);
-            strip.show();
+            lights_off();
             
         }
         return true;
@@ -52,8 +54,15 @@ bool play_start_sequence()
     return false;
 }
 
+void signal_get_ready()
+{
+    strip.setAllLedsColorData(0, 0, 255);
+    strip.show();
+}
+
 void trigger_start()
 {
+    lights_off();
     RndmStartTime = random(1000, 3000);
     StartTime = millis();
 }
