@@ -45,10 +45,21 @@ void lap_display_begin()
     // clear/init the DMD pixels held in RAM
     dmd.clearScreen(true); // true is normal (all pixels off), false is negative (all pixels on)
     dmd.selectFont(Arial_Black_16);
+    
 }
 
 void lap_display_reset_timer()
 {
+    start_time_ms_B = 0;
+    start_time_ms_A = 0;
+    show_lap_time_start_ms_A = 0;
+    show_lap_time_start_ms_B = 0;
+
+    display_time_A = 0;
+    display_time_B = 0;
+
+    min_lap_time_A = 0;
+    min_lap_time_B = 0;
     // Stop the timer
     timerAlarmDisable(update_timer);
     // Reset the displayed time

@@ -23,10 +23,10 @@ This module shows the lap times on the dmd. It implements the necessary function
 #define DISPLAYS_ACROSS 2
 #define DISPLAYS_DOWN 1
 
-#define SEC_X_START 1
-#define MSEC_X_START 19
+#define SEC_X_START 0
+#define MSEC_X_START 18
 
-#define DISPLAY_WIDTH 32
+#define DISPLAY_WIDTH 33
 #define DISPLAY_HEIGHT 16
 
 #define Y_OFFSET 1

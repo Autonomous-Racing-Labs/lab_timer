@@ -6,10 +6,10 @@
 #include <HTTPClient.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include "glob_defines.h"
 
 #include <unordered_map>
 
-#define SERVER_NAME "http://10.134.137.%d:8000/webhook"
 
 enum car_state
 {
