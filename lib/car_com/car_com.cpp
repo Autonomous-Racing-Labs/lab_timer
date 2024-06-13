@@ -69,23 +69,28 @@ void CarCom::handle_webhook()
     }
 
     // Id extrahieren (muss immer vorhanden sein)
-    uint16_t id = doc["id"];
+    uint16_t id = doc["car_id"];
     car_struct * car = car_dict[id];
 
     // Beispielhafte Verarbeitung der Keys, falls vorhanden
-    if (doc.containsKey("is_ready")) {
-        bool is_ready = doc["is_ready"];
-        car->current_status = READY_TO_RACE;
+    if (doc.containsKey("ready")) {
+        bool is_ready = doc["ready"];
+        if(is_ready == true){
+            car->current_status = READY_TO_RACE;
+        }else{
+            car->current_status = NOT_AVAILABLE;
+        }
     }
 
-    if (doc.containsKey("track_pos")) {
-        int track_pos = doc["track_pos"];
+    if (doc.containsKey("track_position")) {
+        int track_pos = doc["track_position"];
         car->current_position = track_pos;
     }
 
-    if (doc.containsKey("is_canceled")) {
-        bool is_canceled = doc["is_canceled"];
-        car->current_status = NOT_READY_TO_RACE;
+    if (doc.containsKey("abort")) {
+        bool is_canceled = doc["abort"];
+        if(is_canceled == true)
+            car->current_status = NOT_READY_TO_RACE;
     }
 
 }
@@ -160,7 +165,7 @@ String CarCom::request_struct_to_string(const request_payload &payload) {
 
     // Add the values to the JSON document
     doc["get_ready"] = payload.get_ready;
-    doc["start_race"] = payload.start_race;
+    doc["go"] = payload.start_race;
     doc["abort"] = payload.abort;
 
     // Serialize the JSON document to a string
@@ -176,7 +181,10 @@ void CarCom::send_request(const request_payload &payload)
     std::for_each(car_dict.begin(), car_dict.end(),
                   [&](const std::pair<const uint16_t, car_struct *> &entry) {
                       car_struct *car = entry.second;
-
+                      
+                      if(payload.start_race == true && car->current_status != READY_TO_RACE){
+                        return;
+                      }
                       WiFiClient client;
                       HTTPClient http;
 
@@ -186,8 +194,9 @@ void CarCom::send_request(const request_payload &payload)
                       http.addHeader("Content-Type", "application/json");
 
                       // Data to send with HTTP POST
-                      String httpRequestData = "{\"data\": " + request_struct_to_string(payload) + "}";
+                      String httpRequestData = request_struct_to_string(payload);
                       // Send HTTP POST request
+                      http.setTimeout(0);
                       int httpResponseCode = http.POST(httpRequestData);
 
                       Serial.print("HTTP Response code: ");

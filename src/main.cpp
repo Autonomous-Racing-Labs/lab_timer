@@ -80,6 +80,7 @@ void loop()
       is_a_ready = false;
       is_b_ready = false;
       is_timeout = false;
+      car_com->reset();
       break;
 
     case AWAIT_START_BTN:
