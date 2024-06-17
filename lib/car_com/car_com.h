@@ -33,6 +33,7 @@ typedef struct
     bool get_ready;
     bool start_race;
     bool abort;
+    bool pos;
 } request_payload;
 
 class CarCom
@@ -47,6 +48,7 @@ public:
     void request_ready_for_start();
     void start_race();
     void send_cancel_request();
+    void request_pos();
 
     car_state get_status(uint16_t car_id);
     int16_t get_current_position(uint16_t car_id);

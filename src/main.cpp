@@ -33,6 +33,7 @@ bool lightBarrierTriggered = false;
 
 unsigned long startRequestReady_ms = 0;
 const unsigned long requestReadyTimeout_ms = 10000;
+unsigned long last_update = 0;
 
 bool is_a_ready = false;
 bool is_b_ready = false;
@@ -201,7 +202,8 @@ void initSoftwareModules() {
 }
 
 int get_car_on_finish_line(){
-  if(airplain_mode){
+  //if(airplain_mode){
+  if(true){
     // just toggle CAR A and CAR B
     if(CAR_B == -1){
       return CAR_A;
@@ -254,12 +256,14 @@ void race() {
     lightBarrierTriggered = false;
   }
 
-  if(millis() % 5000 == 0 && !airplain_mode){
-    Serial.print("carA curr pos: ");
-    Serial.println(car_com->get_current_position(CAR_A));
-    // Serial.print("carB curr pos: ");
-    // Serial.println(carB->get_current_position());
-  }
+  // // if(millis() - last_update > 5000 && !airplain_mode){
+  //   last_update = millis();
+  //   car_com->request_pos();
+  //   Serial.print("carA curr pos: ");
+  //   Serial.println(car_com->get_current_position(CAR_A));
+  //   // Serial.print("carB curr pos: ");
+  //   // Serial.println(carB->get_current_position());
+  // }
 }
 
 void stopRace() {
