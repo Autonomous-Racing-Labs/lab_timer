@@ -83,8 +83,8 @@ void CarCom::handle_webhook()
         }
     }
 
-    if (doc.containsKey("track_position")) {
-        int track_pos = doc["track_position"];
+    if (doc.containsKey("pos")) {
+        int track_pos = doc["pos"];
         car->current_position = track_pos;
     }
 
@@ -139,6 +139,7 @@ void CarCom::request_ready_for_start()
         true,  // get_ready
         false, // start_race
         false, // abort
+        false,
     };
     send_request(payload);
 }
@@ -149,6 +150,7 @@ void CarCom::start_race()
         false, // get_ready
         true,  // start_race
         false, // abort
+        false,
     };
     send_request(payload);
 }
@@ -159,6 +161,17 @@ void CarCom::send_cancel_request()
         false, // get_ready
         false, // start_race
         true,  // abort
+        false,
+    };
+    send_request(payload);
+}
+void CarCom::request_pos()
+{
+    request_payload payload = {
+        false, // get_ready
+        false,  // start_race
+        false, // abort
+        true, //request pos
     };
     send_request(payload);
 }
@@ -171,6 +184,7 @@ String CarCom::request_struct_to_string(const request_payload &payload) {
     doc["get_ready"] = payload.get_ready;
     doc["go"] = payload.start_race;
     doc["abort"] = payload.abort;
+    doc["get_pos"] = payload.pos;
 
     // Serialize the JSON document to a string
     String jsonString;
@@ -186,7 +200,7 @@ void CarCom::send_request(const request_payload &payload)
                   [&](const std::pair<const uint16_t, car_struct *> &entry) {
                       car_struct *car = entry.second;
                       
-                      if(payload.start_race == true && car->current_status != READY_TO_RACE){
+                      if((payload.start_race == true || payload.abort == true || payload.pos == true) && car->current_status != READY_TO_RACE){
                         return;
                       }
                       WiFiClient client;
