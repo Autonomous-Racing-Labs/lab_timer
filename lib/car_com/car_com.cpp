@@ -50,10 +50,11 @@ void CarCom::handle_car_com(){
 
 void CarCom::handle_webhook()
 {
+    server.send(200, "text/plain", "ok"); // Send response back to the sender
+
     String payload = server.arg("plain"); // Extract payload from the request
     // Process the payload as needed
     Serial.println("Received payload: " + payload);
-    server.send(200, "text/plain", "Webhook received"); // Send response back to the sender
 
 
     // JSON-Dokument erstellen (anpassen der Größe nach Bedarf)
@@ -97,6 +98,9 @@ void CarCom::handle_webhook()
 
 void CarCom::add_car_id(uint16_t car_id)
 {
+    if(car_id == -1){
+        return;
+    }
     car_struct *p_new_car = new car_struct;
 
     p_new_car->current_position = 0;

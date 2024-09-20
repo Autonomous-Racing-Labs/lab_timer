@@ -51,7 +51,7 @@ void checkButtonPress();
 
 int current_car = 0;
 bool car_abort = false;
-bool airplain_mode = false;
+bool airplain_mode = AIRPLAIN_MODE;
 
 void setup()
 {
@@ -80,7 +80,9 @@ void loop()
       is_a_ready = false;
       is_b_ready = false;
       is_timeout = false;
-      car_com->reset();
+      if(!airplain_mode){
+        car_com->reset();
+      }
       break;
 
     case AWAIT_START_BTN:
@@ -102,7 +104,7 @@ void loop()
     
     case REQUEST_READY_STATUS:
       is_timeout = true;
-      if(!airplain_mode){
+      if(!airplain_mode){   // in airplain_mode, is_timeout is always true, so the next state will be PLAY_START_SEQUENCE
         is_a_ready = car_com->get_status(CAR_A) == READY_TO_RACE;
         is_b_ready = car_com->get_status(CAR_B) == READY_TO_RACE;
 
@@ -201,11 +203,11 @@ void initSoftwareModules() {
 }
 
 int get_car_on_finish_line(){
-  if(airplain_mode){
+  if(CAR_B == -1){
+    return CAR_A;
+  }
+  if(airplain_mode || JUST_TOGGLE_CARS){
     // just toggle CAR A and CAR B
-    if(CAR_B == -1){
-      return CAR_A;
-    }
 
     if(current_car == CAR_A){
       current_car = CAR_B;
